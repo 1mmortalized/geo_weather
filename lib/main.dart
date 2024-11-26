@@ -1,8 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
-import 'package:geo_weather/route_builder.dart';
-
-import 'location_search_bar.dart';
 
 void main() {
   runApp(const MyApp());
@@ -38,23 +37,6 @@ class _MyAppState extends State<MyApp> {
       ),
     );
   }
-
-// Future<void> _drawRoad() async {
-//   RoadInfo roadInfo = await mapController.drawRoad(
-//     GeoPoint(latitude: 49.236997, longitude: 28.405208),
-//     GeoPoint(latitude: 49.033457, longitude: 27.228157),
-//     roadType: RoadType.car,
-//     roadOption: const RoadOption(
-//       roadWidth: 10,
-//       roadColor: Colors.blue,
-//       zoomInto: true,
-//     ),
-//   );
-//   print("${roadInfo.distance}km");
-//   print("${roadInfo.duration}sec");
-//   print("${roadInfo.instructions}");
-// }
-//
 }
 
 class MainScreen extends StatefulWidget {
@@ -67,8 +49,17 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  bool isDark = false;
+
   late MapController mapController;
   GeoPoint? pickedPoint;
+
+  // The query currently being searched for. If null, there is no pending
+  // request.
+  String? _searchingWithQuery;
+
+  // The most recent options received from the API.
+  late Iterable<Widget> _lastOptions = <Widget>[];
 
   @override
   void initState() {
@@ -124,33 +115,7 @@ class _MainScreenState extends State<MainScreen> {
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: LocationSearchBar(
-              onThemeChanged: (isDark) {
-                widget.onThemeChanged!(isDark);
-              },
-              onItemTap: (point) async {
-                if (pickedPoint != null) {
-                  await mapController.removeMarker(pickedPoint!);
-                }
-                pickedPoint = point;
-
-                await mapController.moveTo(point, animate: true);
-                await mapController.setZoom(zoomLevel: 17);
-                await mapController.addMarker(
-                  iconAnchor: IconAnchor(anchor: Anchor.top),
-                  point,
-                  markerIcon: MarkerIcon(
-                    icon: Icon(
-                      Icons.location_pin,
-                      size: 48,
-                      color: context.mounted
-                          ? Theme.of(context).colorScheme.tertiary
-                          : Colors.red,
-                    ),
-                  ),
-                );
-              },
-            ),
+            child: getLocationSearchBar(),
           ),
         ),
         Align(
@@ -172,7 +137,7 @@ class _MainScreenState extends State<MainScreen> {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => const NavigateFullscreenDialog(),
+                        builder: (context) => getNavigateDialog(),
                         fullscreenDialog: true,
                       ),
                     );
@@ -187,9 +152,176 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  Widget getNavigateDialog() {
+    return Hero(
+      tag: 'navigate-dialog',
+      child: Dialog.fullscreen(
+          child: Scaffold(
+        appBar: AppBar(),
+        body: Padding(
+          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+          child: SafeArea(
+            child: Column(
+              children: [
+                SearchAnchor(
+                  builder: (BuildContext context, SearchController controller) {
+                    return TextField(
+                      controller: controller,
+                      decoration: const InputDecoration(
+                        icon: Icon(Icons.circle_outlined),
+                        hintText: 'Hint Text',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.all(8.0),
+                      ),
+                      onTap: () {
+                        controller.openView();
+                      },
+                    );
+                  },
+                  suggestionsBuilder: searchLocationSuggestionBuilder,
+                ),
+                const SizedBox(height: 16),
+                SearchAnchor(
+                  builder: (BuildContext context, SearchController controller) {
+                    return TextField(
+                      controller: controller,
+                      decoration: const InputDecoration(
+                        icon: Icon(Icons.circle_outlined),
+                        hintText: 'Hint Text',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.all(8.0),
+                      ),
+                      onTap: () {
+                        controller.openView();
+                      },
+                    );
+                  },
+                  suggestionsBuilder: searchNavigatePointsSuggestionBuilder,
+                ),
+              ],
+            ),
+          ),
+        ),
+      )),
+    );
+  }
+
+  Widget getLocationSearchBar() {
+    return SearchAnchor(
+      builder: (BuildContext context, SearchController controller) {
+        return SearchBar(
+          controller: controller,
+          padding: const WidgetStatePropertyAll<EdgeInsets>(
+              EdgeInsets.symmetric(horizontal: 16.0)),
+          onTap: () {
+            controller.openView();
+          },
+          onChanged: (_) {
+            controller.openView();
+          },
+          hintText: "Search",
+          leading: const Icon(Icons.search),
+          trailing: <Widget>[
+            Tooltip(
+              message: 'Change brightness mode',
+              child: IconButton(
+                isSelected: isDark,
+                onPressed: () {
+                  setState(() {
+                    isDark = !isDark;
+                    widget.onThemeChanged!(isDark);
+                  });
+                },
+                icon: const Icon(Icons.wb_sunny_outlined),
+                selectedIcon: const Icon(Icons.brightness_2_outlined),
+              ),
+            )
+          ],
+        );
+      },
+      suggestionsBuilder: searchNavigatePointsSuggestionBuilder,
+    );
+  }
+
+  FutureOr<Iterable<Widget>> searchLocationSuggestionBuilder(
+      BuildContext context, SearchController controller) async {
+    return _suggestionBuilder(context, controller, onItemTap: (point) async {
+      if (pickedPoint != null) {
+        await mapController.removeMarker(pickedPoint!);
+      }
+      pickedPoint = point;
+
+      await mapController.moveTo(point, animate: true);
+      await mapController.setZoom(zoomLevel: 17);
+      await mapController.addMarker(
+        iconAnchor: IconAnchor(anchor: Anchor.top),
+        point,
+        markerIcon: MarkerIcon(
+          icon: Icon(
+            Icons.location_pin,
+            size: 48,
+            color: context.mounted
+                ? Theme.of(context).colorScheme.tertiary
+                : Colors.red,
+          ),
+        ),
+      );
+    });
+  }
+
+  FutureOr<Iterable<Widget>> searchNavigatePointsSuggestionBuilder(
+      BuildContext context, SearchController controller) async {
+    return _suggestionBuilder(context, controller);
+  }
+
+  FutureOr<Iterable<Widget>> _suggestionBuilder(
+      BuildContext context, SearchController controller, {Function(GeoPoint)? onItemTap}) async {
+    _searchingWithQuery = controller.text;
+
+    final List<SearchInfo> suggestions =
+        await addressSuggestion(_searchingWithQuery!);
+
+    // If another search happened after this one, throw away these options.
+    // Use the previous options instead and wait for the newer request to
+    // finish.
+    if (_searchingWithQuery != controller.text) {
+      return _lastOptions;
+    }
+
+    _lastOptions = List<ListTile>.generate(suggestions.length, (int index) {
+      final SearchInfo item = suggestions[index];
+      return ListTile(
+        title: Text(item.address.toString()),
+        onTap: () async {
+          controller.closeView(item.address.toString());
+          onItemTap!(item.point!);
+        },
+      );
+    });
+
+    return _lastOptions;
+  }
+
   @override
   void deactivate() {
     super.deactivate();
     mapController.dispose();
   }
 }
+
+// Future<void> _drawRoad() async {
+//   RoadInfo roadInfo = await mapController.drawRoad(
+//     GeoPoint(latitude: 49.236997, longitude: 28.405208),
+//     GeoPoint(latitude: 49.033457, longitude: 27.228157),
+//     roadType: RoadType.car,
+//     roadOption: const RoadOption(
+//       roadWidth: 10,
+//       roadColor: Colors.blue,
+//       zoomInto: true,
+//     ),
+//   );
+//   print("${roadInfo.distance}km");
+//   print("${roadInfo.duration}sec");
+//   print("${roadInfo.instructions}");
+// }
+//
