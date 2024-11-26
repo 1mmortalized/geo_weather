@@ -68,6 +68,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   late MapController mapController;
+  GeoPoint? pickedPoint;
 
   @override
   void initState() {
@@ -128,8 +129,26 @@ class _MainScreenState extends State<MainScreen> {
                 widget.onThemeChanged!(isDark);
               },
               onItemTap: (point) async {
+                if (pickedPoint != null) {
+                  await mapController.removeMarker(pickedPoint!);
+                }
+                pickedPoint = point;
+
                 await mapController.moveTo(point, animate: true);
                 await mapController.setZoom(zoomLevel: 17);
+                await mapController.addMarker(
+                  iconAnchor: IconAnchor(anchor: Anchor.top),
+                  point,
+                  markerIcon: MarkerIcon(
+                    icon: Icon(
+                      Icons.location_pin,
+                      size: 48,
+                      color: context.mounted
+                          ? Theme.of(context).colorScheme.tertiary
+                          : Colors.red,
+                    ),
+                  ),
+                );
               },
             ),
           ),
