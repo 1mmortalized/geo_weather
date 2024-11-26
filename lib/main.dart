@@ -127,6 +127,10 @@ class _MainScreenState extends State<MainScreen> {
               onThemeChanged: (isDark) {
                 widget.onThemeChanged!(isDark);
               },
+              onItemTap: (point) async {
+                await mapController.moveTo(point, animate: true);
+                await mapController.setZoom(zoomLevel: 17);
+              },
             ),
           ),
         ),

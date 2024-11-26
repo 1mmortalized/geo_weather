@@ -3,8 +3,9 @@ import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 
 class LocationSearchBar extends StatefulWidget {
   final Function(bool)? onThemeChanged;
+  final Function(GeoPoint)? onItemTap;
 
-  const LocationSearchBar({super.key, this.onThemeChanged});
+  const LocationSearchBar({super.key, this.onThemeChanged, this.onItemTap});
 
   @override
   State<LocationSearchBar> createState() => _LocationSearchBarState();
@@ -75,6 +76,7 @@ class _LocationSearchBarState extends State<LocationSearchBar> {
           title: Text(item.address.toString()),
           onTap: () {
             controller.closeView(item.address.toString());
+            widget.onItemTap!(item.point!);
           },
         );
       });
