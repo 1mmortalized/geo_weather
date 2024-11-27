@@ -1,16 +1,8 @@
-# geo_weather
+# GeoWeather
 
-A new Flutter project.
+An app that allows you to build a route and get a weather forecast along it.
 
-## Getting Started
+## Screenshots
 
-This project is a starting point for a Flutter application.
+<a href="url"><img src="https://github.com/user-attachments/assets/445f5a36-fdf9-4412-9b9d-8587e29cf05b" width="250" ></a>
 
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
