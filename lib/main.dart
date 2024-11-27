@@ -24,7 +24,7 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.red,
+          seedColor: Colors.green,
           brightness: isDark ? Brightness.dark : Brightness.light,
         ),
       ),
@@ -178,7 +178,7 @@ class _MainScreenState extends State<MainScreen> {
                       },
                     );
                   },
-                  suggestionsBuilder: searchLocationSuggestionBuilder,
+                  suggestionsBuilder: searchNavigatePointSuggestionBuilder,
                 ),
                 const SizedBox(height: 16),
                 SearchAnchor(
@@ -196,7 +196,7 @@ class _MainScreenState extends State<MainScreen> {
                       },
                     );
                   },
-                  suggestionsBuilder: searchNavigatePointsSuggestionBuilder,
+                  suggestionsBuilder: searchNavigatePointSuggestionBuilder,
                 ),
               ],
             ),
@@ -229,7 +229,7 @@ class _MainScreenState extends State<MainScreen> {
                 onPressed: () {
                   setState(() {
                     isDark = !isDark;
-                    widget.onThemeChanged!(isDark);
+                    widget.onThemeChanged?.call(isDark);
                   });
                 },
                 icon: const Icon(Icons.wb_sunny_outlined),
@@ -239,12 +239,12 @@ class _MainScreenState extends State<MainScreen> {
           ],
         );
       },
-      suggestionsBuilder: searchNavigatePointsSuggestionBuilder,
+      suggestionsBuilder: searchLocationSuggestionBuilder,
     );
   }
 
   FutureOr<Iterable<Widget>> searchLocationSuggestionBuilder(
-      BuildContext context, SearchController controller) async {
+      BuildContext context, SearchController controller) {
     return _suggestionBuilder(context, controller, onItemTap: (point) async {
       if (pickedPoint != null) {
         await mapController.removeMarker(pickedPoint!);
@@ -256,26 +256,24 @@ class _MainScreenState extends State<MainScreen> {
       await mapController.addMarker(
         iconAnchor: IconAnchor(anchor: Anchor.top),
         point,
-        markerIcon: MarkerIcon(
+        markerIcon: const MarkerIcon(
           icon: Icon(
             Icons.location_pin,
             size: 48,
-            color: context.mounted
-                ? Theme.of(context).colorScheme.tertiary
-                : Colors.red,
+            color: Colors.red
           ),
         ),
       );
     });
   }
 
-  FutureOr<Iterable<Widget>> searchNavigatePointsSuggestionBuilder(
+  FutureOr<Iterable<Widget>> searchNavigatePointSuggestionBuilder(
       BuildContext context, SearchController controller) async {
     return _suggestionBuilder(context, controller);
   }
 
   FutureOr<Iterable<Widget>> _suggestionBuilder(
-      BuildContext context, SearchController controller, {Function(GeoPoint)? onItemTap}) async {
+      BuildContext context, SearchController controller, {Future Function(GeoPoint)? onItemTap}) async {
     _searchingWithQuery = controller.text;
 
     final List<SearchInfo> suggestions =
@@ -294,7 +292,7 @@ class _MainScreenState extends State<MainScreen> {
         title: Text(item.address.toString()),
         onTap: () async {
           controller.closeView(item.address.toString());
-          onItemTap!(item.point!);
+          await onItemTap?.call(item.point!);
         },
       );
     });
