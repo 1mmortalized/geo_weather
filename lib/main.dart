@@ -52,7 +52,10 @@ class _MainScreenState extends State<MainScreen> {
   bool isDark = false;
 
   late MapController mapController;
-  GeoPoint? pickedPoint;
+  GeoPoint? pickedLocation;
+
+  GeoPoint? routeStart;
+  GeoPoint? routeEnd;
 
   // The query currently being searched for. If null, there is no pending
   // request.
@@ -157,9 +160,23 @@ class _MainScreenState extends State<MainScreen> {
       tag: 'navigate-dialog',
       child: Dialog.fullscreen(
           child: Scaffold(
-        appBar: AppBar(),
+        appBar: AppBar(
+          title: const Text("Creating a route"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _drawRoad(routeStart!, routeEnd!).then((_) {
+                  routeStart = null;
+                  routeEnd = null;
+                });
+              },
+              child: const Text("Go"),
+            )
+          ],
+        ),
         body: Padding(
-          padding: const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+          padding: const EdgeInsets.all(16),
           child: SafeArea(
             child: Column(
               children: [
@@ -168,8 +185,8 @@ class _MainScreenState extends State<MainScreen> {
                     return TextField(
                       controller: controller,
                       decoration: const InputDecoration(
-                        icon: Icon(Icons.circle_outlined),
-                        hintText: 'Hint Text',
+                        icon: Icon(Icons.trip_origin),
+                        hintText: 'Enter start point',
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.all(8.0),
                       ),
@@ -178,7 +195,13 @@ class _MainScreenState extends State<MainScreen> {
                       },
                     );
                   },
-                  suggestionsBuilder: searchNavigatePointSuggestionBuilder,
+                  suggestionsBuilder:
+                      (BuildContext context, SearchController controller) {
+                    return _suggestionBuilder(context, controller,
+                        onItemTap: (point) {
+                      routeStart = point;
+                    });
+                  },
                 ),
                 const SizedBox(height: 16),
                 SearchAnchor(
@@ -186,8 +209,11 @@ class _MainScreenState extends State<MainScreen> {
                     return TextField(
                       controller: controller,
                       decoration: const InputDecoration(
-                        icon: Icon(Icons.circle_outlined),
-                        hintText: 'Hint Text',
+                        icon: Icon(
+                          Icons.location_on_rounded,
+                          color: Colors.red,
+                        ),
+                        hintText: 'Enter destination point',
                         border: OutlineInputBorder(),
                         contentPadding: EdgeInsets.all(8.0),
                       ),
@@ -196,7 +222,13 @@ class _MainScreenState extends State<MainScreen> {
                       },
                     );
                   },
-                  suggestionsBuilder: searchNavigatePointSuggestionBuilder,
+                  suggestionsBuilder:
+                      (BuildContext context, SearchController controller) {
+                    return _suggestionBuilder(context, controller,
+                        onItemTap: (point) {
+                      routeEnd = point;
+                    });
+                  },
                 ),
               ],
             ),
@@ -246,10 +278,10 @@ class _MainScreenState extends State<MainScreen> {
   FutureOr<Iterable<Widget>> searchLocationSuggestionBuilder(
       BuildContext context, SearchController controller) {
     return _suggestionBuilder(context, controller, onItemTap: (point) async {
-      if (pickedPoint != null) {
-        await mapController.removeMarker(pickedPoint!);
+      if (pickedLocation != null) {
+        await mapController.removeMarker(pickedLocation!);
       }
-      pickedPoint = point;
+      pickedLocation = point;
 
       await mapController.moveTo(point, animate: true);
       await mapController.setZoom(zoomLevel: 17);
@@ -257,23 +289,15 @@ class _MainScreenState extends State<MainScreen> {
         iconAnchor: IconAnchor(anchor: Anchor.top),
         point,
         markerIcon: const MarkerIcon(
-          icon: Icon(
-            Icons.location_pin,
-            size: 48,
-            color: Colors.red
-          ),
+          icon: Icon(Icons.location_pin, size: 48, color: Colors.red),
         ),
       );
     });
   }
 
-  FutureOr<Iterable<Widget>> searchNavigatePointSuggestionBuilder(
-      BuildContext context, SearchController controller) async {
-    return _suggestionBuilder(context, controller);
-  }
-
   FutureOr<Iterable<Widget>> _suggestionBuilder(
-      BuildContext context, SearchController controller, {Future Function(GeoPoint)? onItemTap}) async {
+      BuildContext context, SearchController controller,
+      {Function(GeoPoint)? onItemTap}) async {
     _searchingWithQuery = controller.text;
 
     final List<SearchInfo> suggestions =
@@ -290,9 +314,9 @@ class _MainScreenState extends State<MainScreen> {
       final SearchInfo item = suggestions[index];
       return ListTile(
         title: Text(item.address.toString()),
-        onTap: () async {
+        onTap: () {
           controller.closeView(item.address.toString());
-          await onItemTap?.call(item.point!);
+          onItemTap?.call(item.point!);
         },
       );
     });
@@ -300,26 +324,25 @@ class _MainScreenState extends State<MainScreen> {
     return _lastOptions;
   }
 
+  Future<void> _drawRoad(GeoPoint start, GeoPoint end) async {
+    await mapController.clearAllRoads();
+
+    await mapController.drawRoad(
+      start,
+      end,
+      roadType: RoadType.car,
+      roadOption: const RoadOption(
+        roadBorderColor: Colors.blue,
+        roadBorderWidth: 7,
+        roadColor: Colors.blue,
+        zoomInto: true,
+      ),
+    );
+  }
+
   @override
-  void deactivate() {
-    super.deactivate();
+  void dispose() {
     mapController.dispose();
+    super.dispose();
   }
 }
-
-// Future<void> _drawRoad() async {
-//   RoadInfo roadInfo = await mapController.drawRoad(
-//     GeoPoint(latitude: 49.236997, longitude: 28.405208),
-//     GeoPoint(latitude: 49.033457, longitude: 27.228157),
-//     roadType: RoadType.car,
-//     roadOption: const RoadOption(
-//       roadWidth: 10,
-//       roadColor: Colors.blue,
-//       zoomInto: true,
-//     ),
-//   );
-//   print("${roadInfo.distance}km");
-//   print("${roadInfo.duration}sec");
-//   print("${roadInfo.instructions}");
-// }
-//
