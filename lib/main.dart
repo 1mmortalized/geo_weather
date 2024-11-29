@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
+import 'package:weather/weather.dart';
 
-void main() {
+void main() async {
+  await dotenv.load(fileName: ".env");
   runApp(const MyApp());
 }
 
@@ -63,6 +66,8 @@ class _MainScreenState extends State<MainScreen> {
 
   // The most recent options received from the API.
   late Iterable<Widget> _lastOptions = <Widget>[];
+
+  List<GeoPoint> markers = List.empty(growable: true);
 
   @override
   void initState() {
@@ -326,8 +331,10 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _drawRoad(GeoPoint start, GeoPoint end) async {
     await mapController.clearAllRoads();
+    await mapController.removeMarkers(markers);
+    markers.clear();
 
-    await mapController.drawRoad(
+    RoadInfo roadInfo = await mapController.drawRoad(
       start,
       end,
       roadType: RoadType.car,
@@ -338,6 +345,35 @@ class _MainScreenState extends State<MainScreen> {
         zoomInto: true,
       ),
     );
+
+    final key = dotenv.env['WEATHER_API_KEY']!;
+    WeatherFactory wf = WeatherFactory(key);
+
+    for (GeoPoint point in getEquidistantValues(roadInfo.route, 5)) {
+      Weather weather =
+          await wf.currentWeatherByLocation(point.latitude, point.longitude);
+      int? temperature = weather.temperature?.celsius?.round();
+      weather.weatherIcon;
+
+      await mapController.addMarker(point,
+          markerIcon: MarkerIcon(
+            iconWidget: Card(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8, right: 16),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.network(
+                        "https://openweathermap.org/img/wn/${weather.weatherIcon}.png"),
+                    const SizedBox(width: 8),
+                    Text("${temperature ?? "NaN"} °C"),
+                  ],
+                ),
+              ),
+            ),
+          ));
+      markers.add(point);
+    }
   }
 
   @override
@@ -345,4 +381,20 @@ class _MainScreenState extends State<MainScreen> {
     mapController.dispose();
     super.dispose();
   }
+}
+
+List<T> getEquidistantValues<T>(List<T> list, int count) {
+  if (list.length <= count) {
+    return list;
+  }
+
+  int step = (list.length - 1) ~/ (count - 1);
+  return List.generate(count, (index) {
+    int position = index * step;
+    if (index == count - 1) {
+      // Ensure the last value is the last element of the list
+      return list.last;
+    }
+    return list[position];
+  });
 }
