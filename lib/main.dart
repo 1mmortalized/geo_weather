@@ -69,6 +69,8 @@ class _MainScreenState extends State<MainScreen> {
 
   List<GeoPoint> markers = List.empty(growable: true);
 
+  final FocusNode _searchBarFocusNode = FocusNode();
+
   @override
   void initState() {
     mapController = MapController.withUserPosition(
@@ -119,6 +121,9 @@ class _MainScreenState extends State<MainScreen> {
             enableRotationByGesture: false,
             showZoomController: true,
           ),
+          onMapMoved: (region) {
+            if (_searchBarFocusNode.hasFocus) _searchBarFocusNode.unfocus();
+          },
         ),
         SafeArea(
           child: Padding(
@@ -247,6 +252,7 @@ class _MainScreenState extends State<MainScreen> {
     return SearchAnchor(
       builder: (BuildContext context, SearchController controller) {
         return SearchBar(
+          focusNode: _searchBarFocusNode,
           controller: controller,
           padding: const WidgetStatePropertyAll<EdgeInsets>(
               EdgeInsets.symmetric(horizontal: 16.0)),
@@ -321,6 +327,7 @@ class _MainScreenState extends State<MainScreen> {
         title: Text(item.address.toString()),
         onTap: () {
           controller.closeView(item.address.toString());
+          _searchBarFocusNode.unfocus();
           onItemTap?.call(item.point!);
         },
       );
