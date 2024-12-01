@@ -84,10 +84,24 @@ class _MainScreenState extends State<MainScreen> {
 
   @override
   void initState() {
-    mapController = MapController.withUserPosition(
-      trackUserLocation: const UserTrackingOption(
+    mapController = MapController.customLayer(
+      initMapWithUserPosition: const UserTrackingOption(
         enableTracking: true,
         unFollowUser: false,
+      ),
+      customTile: CustomTile(
+        sourceName: "maptiler",
+        tileExtension: ".png",
+        minZoomLevel: 2,
+        maxZoomLevel: 19,
+        urlsServers: [
+          TileURLs(
+            url: "https://api.maptiler.com/maps/dataviz-dark/256/",
+            subdomains: [],
+          )
+        ],
+        keyApi: const MapEntry("key", "HO0JD04RaUieGQTRdyGp"),
+        tileSize: 256,
       ),
     );
 
@@ -97,44 +111,48 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: Stack(children: [
-        OSMFlutter(
-          controller: mapController,
-          osmOption: OSMOption(
-            userTrackingOption: const UserTrackingOption(
-              enableTracking: true,
-              unFollowUser: false,
-            ),
-            zoomOption: const ZoomOption(
-              initZoom: 8,
-              minZoomLevel: 3,
-              maxZoomLevel: 19,
-              stepZoom: 1.0,
-            ),
-            userLocationMarker: UserLocationMaker(
-              personMarker: const MarkerIcon(
-                icon: Icon(
-                  Icons.location_history_rounded,
-                  color: Colors.red,
-                  size: 48,
+        Transform.translate(
+          offset: const Offset(0.5, 0.5),
+          child: OSMFlutter(
+            controller: mapController,
+            osmOption: OSMOption(
+              userTrackingOption: const UserTrackingOption(
+                enableTracking: true,
+                unFollowUser: false,
+              ),
+              zoomOption: const ZoomOption(
+                initZoom: 8,
+                minZoomLevel: 3,
+                maxZoomLevel: 19,
+                stepZoom: 1.0,
+              ),
+              userLocationMarker: UserLocationMaker(
+                personMarker: const MarkerIcon(
+                  icon: Icon(
+                    Icons.location_history_rounded,
+                    color: Colors.red,
+                    size: 48,
+                  ),
+                ),
+                directionArrowMarker: const MarkerIcon(
+                  icon: Icon(
+                    Icons.double_arrow,
+                    size: 48,
+                  ),
                 ),
               ),
-              directionArrowMarker: const MarkerIcon(
-                icon: Icon(
-                  Icons.double_arrow,
-                  size: 48,
-                ),
+              roadConfiguration: const RoadOption(
+                roadColor: Colors.yellowAccent,
               ),
+              enableRotationByGesture: false,
+              showZoomController: true,
             ),
-            roadConfiguration: const RoadOption(
-              roadColor: Colors.yellowAccent,
-            ),
-            enableRotationByGesture: false,
-            showZoomController: true,
+            onMapMoved: (region) {
+              if (_searchBarFocusNode.hasFocus) _searchBarFocusNode.unfocus();
+            },
           ),
-          onMapMoved: (region) {
-            if (_searchBarFocusNode.hasFocus) _searchBarFocusNode.unfocus();
-          },
         ),
         SafeArea(
           child: Padding(
@@ -152,7 +170,14 @@ class _MainScreenState extends State<MainScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   FloatingActionButton(
-                    onPressed: () {},
+                    onPressed: () async {
+                      GeoPoint start = GeoPoint(
+                          latitude: 49.84125931, longitude: 24.03016822);
+                      GeoPoint end = GeoPoint(
+                          latitude: 50.38091185, longitude: 30.55075997);
+
+                      await _drawRoad(start, end);
+                    },
                     child: const Icon(Icons.my_location_rounded),
                   ),
                   const SizedBox(height: 8),
@@ -425,18 +450,16 @@ SystemUiOverlayStyle getSystemUiOverlayStyle(BuildContext context) {
     systemNavigationBarContrastEnforced: true,
     systemStatusBarContrastEnforced: true,
     statusBarColor:
-    Theme.of(context).scaffoldBackgroundColor.withOpacity(0.002),
-    statusBarIconBrightness:
-    Theme.of(context).brightness == Brightness.dark
+        Theme.of(context).scaffoldBackgroundColor.withOpacity(0.002),
+    statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark
         ? Brightness.light
         : Brightness.dark,
-    systemNavigationBarColor:
-    Theme.of(context).brightness == Brightness.dark
+    systemNavigationBarColor: Theme.of(context).brightness == Brightness.dark
         ? Colors.white.withOpacity(0.002)
         : Colors.black.withOpacity(0.002),
     systemNavigationBarIconBrightness:
-    Theme.of(context).brightness == Brightness.dark
-        ? Brightness.light
-        : Brightness.dark,
+        Theme.of(context).brightness == Brightness.dark
+            ? Brightness.light
+            : Brightness.dark,
   );
 }
