@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_osm_plugin/flutter_osm_plugin.dart';
 import 'package:weather/weather.dart';
@@ -19,6 +20,16 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   bool isDark = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    SystemChrome.setSystemUIOverlayStyle(getSystemUiOverlayStyle(context));
+
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge,
+        overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom]);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,36 +142,38 @@ class _MainScreenState extends State<MainScreen> {
             child: getLocationSearchBar(),
           ),
         ),
-        Align(
-          alignment: Alignment.bottomRight,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                FloatingActionButton(
-                  onPressed: () {},
-                  child: const Icon(Icons.my_location_rounded),
-                ),
-                const SizedBox(height: 8),
-                FloatingActionButton.extended(
-                  heroTag: 'navigate-dialog',
-                  label: const Text("Navigate"),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => getNavigateDialog(),
-                        fullscreenDialog: true,
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.turn_right_rounded),
-                ),
-              ],
+        SafeArea(
+          child: Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  FloatingActionButton(
+                    onPressed: () {},
+                    child: const Icon(Icons.my_location_rounded),
+                  ),
+                  const SizedBox(height: 8),
+                  FloatingActionButton.extended(
+                    heroTag: 'navigate-dialog',
+                    label: const Text("Navigate"),
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => getNavigateDialog(),
+                          fullscreenDialog: true,
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.turn_right_rounded),
+                  ),
+                ],
+              ),
             ),
           ),
-        )
+        ),
       ]),
     );
   }
@@ -184,6 +197,7 @@ class _MainScreenState extends State<MainScreen> {
               child: const Text("Go"),
             )
           ],
+          systemOverlayStyle: getSystemUiOverlayStyle(context),
         ),
         body: Padding(
           padding: const EdgeInsets.all(16),
@@ -404,4 +418,25 @@ List<T> getEquidistantValues<T>(List<T> list, int count) {
     }
     return list[position];
   });
+}
+
+SystemUiOverlayStyle getSystemUiOverlayStyle(BuildContext context) {
+  return SystemUiOverlayStyle(
+    systemNavigationBarContrastEnforced: true,
+    systemStatusBarContrastEnforced: true,
+    statusBarColor:
+    Theme.of(context).scaffoldBackgroundColor.withOpacity(0.002),
+    statusBarIconBrightness:
+    Theme.of(context).brightness == Brightness.dark
+        ? Brightness.light
+        : Brightness.dark,
+    systemNavigationBarColor:
+    Theme.of(context).brightness == Brightness.dark
+        ? Colors.white.withOpacity(0.002)
+        : Colors.black.withOpacity(0.002),
+    systemNavigationBarIconBrightness:
+    Theme.of(context).brightness == Brightness.dark
+        ? Brightness.light
+        : Brightness.dark,
+  );
 }
