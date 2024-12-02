@@ -19,8 +19,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  bool isDark = false;
-
   @override
   void initState() {
     super.initState();
@@ -38,33 +36,23 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
-          brightness: isDark ? Brightness.dark : Brightness.light,
+          seedColor: const Color.fromARGB(255, 93, 169, 233),
+          brightness: Brightness.dark,
         ),
       ),
-      home: MainScreen(
-        onThemeChanged: (isDark) {
-          setState(() {
-            this.isDark = isDark;
-          });
-        },
-      ),
+      home: const MainScreen(),
     );
   }
 }
 
 class MainScreen extends StatefulWidget {
-  final Function(bool)? onThemeChanged;
-
-  const MainScreen({super.key, this.onThemeChanged});
+  const MainScreen({super.key});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
 }
 
 class _MainScreenState extends State<MainScreen> {
-  bool isDark = false;
-
   late MapController mapController;
   GeoPoint? pickedLocation;
 
@@ -87,22 +75,10 @@ class _MainScreenState extends State<MainScreen> {
     mapController = MapController.customLayer(
       initMapWithUserPosition: const UserTrackingOption(
         enableTracking: true,
-        unFollowUser: false,
+        unFollowUser: true,
       ),
-      customTile: CustomTile(
-        sourceName: "maptiler",
-        tileExtension: ".png",
-        minZoomLevel: 2,
-        maxZoomLevel: 19,
-        urlsServers: [
-          TileURLs(
-            url: "https://api.maptiler.com/maps/dataviz-dark/256/",
-            subdomains: [],
-          )
-        ],
-        keyApi: const MapEntry("key", "HO0JD04RaUieGQTRdyGp"),
-        tileSize: 256,
-      ),
+      customTile:
+          getCustomTile(url: "https://api.maptiler.com/maps/dataviz-dark/256/"),
     );
 
     super.initState();
@@ -129,10 +105,10 @@ class _MainScreenState extends State<MainScreen> {
                 stepZoom: 1.0,
               ),
               userLocationMarker: UserLocationMaker(
-                personMarker: const MarkerIcon(
+                personMarker: MarkerIcon(
                   icon: Icon(
-                    Icons.location_history_rounded,
-                    color: Colors.red,
+                    Icons.circle,
+                    color: Theme.of(context).colorScheme.primary,
                     size: 48,
                   ),
                 ),
@@ -203,6 +179,23 @@ class _MainScreenState extends State<MainScreen> {
     );
   }
 
+  CustomTile getCustomTile({required String url}) {
+    return CustomTile(
+      sourceName: "maptiler",
+      tileExtension: ".png",
+      minZoomLevel: 2,
+      maxZoomLevel: 19,
+      urlsServers: [
+        TileURLs(
+          url: url,
+          subdomains: [],
+        )
+      ],
+      keyApi: MapEntry("key", dotenv.env['MAPTILER_API_KEY']!),
+      tileSize: 256,
+    );
+  }
+
   Widget getNavigateDialog() {
     return Hero(
       tag: 'navigate-dialog',
@@ -233,11 +226,14 @@ class _MainScreenState extends State<MainScreen> {
                   builder: (BuildContext context, SearchController controller) {
                     return TextField(
                       controller: controller,
-                      decoration: const InputDecoration(
-                        icon: Icon(Icons.trip_origin),
+                      decoration: InputDecoration(
+                        icon: Icon(
+                          Icons.trip_origin,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                         hintText: 'Enter start point',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.all(8.0),
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.all(8.0),
                       ),
                       onTap: () {
                         controller.openView();
@@ -257,14 +253,14 @@ class _MainScreenState extends State<MainScreen> {
                   builder: (BuildContext context, SearchController controller) {
                     return TextField(
                       controller: controller,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         icon: Icon(
                           Icons.location_on_rounded,
-                          color: Colors.red,
+                          color: Theme.of(context).colorScheme.tertiary,
                         ),
                         hintText: 'Enter destination point',
-                        border: OutlineInputBorder(),
-                        contentPadding: EdgeInsets.all(8.0),
+                        border: const OutlineInputBorder(),
+                        contentPadding: const EdgeInsets.all(8.0),
                       ),
                       onTap: () {
                         controller.openView();
@@ -303,22 +299,6 @@ class _MainScreenState extends State<MainScreen> {
           },
           hintText: "Search",
           leading: const Icon(Icons.search),
-          trailing: <Widget>[
-            Tooltip(
-              message: 'Change brightness mode',
-              child: IconButton(
-                isSelected: isDark,
-                onPressed: () {
-                  setState(() {
-                    isDark = !isDark;
-                    widget.onThemeChanged?.call(isDark);
-                  });
-                },
-                icon: const Icon(Icons.wb_sunny_outlined),
-                selectedIcon: const Icon(Icons.brightness_2_outlined),
-              ),
-            )
-          ],
         );
       },
       suggestionsBuilder: searchLocationSuggestionBuilder,
@@ -327,6 +307,8 @@ class _MainScreenState extends State<MainScreen> {
 
   FutureOr<Iterable<Widget>> searchLocationSuggestionBuilder(
       BuildContext context, SearchController controller) {
+    final colorTertiary = Theme.of(context).colorScheme.tertiary;
+
     return _suggestionBuilder(context, controller, onItemTap: (point) async {
       if (pickedLocation != null) {
         await mapController.removeMarker(pickedLocation!);
@@ -338,8 +320,12 @@ class _MainScreenState extends State<MainScreen> {
       await mapController.addMarker(
         iconAnchor: IconAnchor(anchor: Anchor.top),
         point,
-        markerIcon: const MarkerIcon(
-          icon: Icon(Icons.location_pin, size: 48, color: Colors.red),
+        markerIcon: MarkerIcon(
+          icon: Icon(
+            Icons.location_pin,
+            size: 48,
+            color: colorTertiary,
+          ),
         ),
       );
     });
@@ -380,15 +366,18 @@ class _MainScreenState extends State<MainScreen> {
     await mapController.removeMarkers(markers);
     markers.clear();
 
+    final primaryContainer =
+        mounted ? Theme.of(context).colorScheme.primaryContainer : Colors.white;
+
     RoadInfo roadInfo = await mapController.drawRoad(
       start,
       end,
       roadType: RoadType.car,
-      roadOption: const RoadOption(
-        roadBorderColor: Colors.blue,
-        roadBorderWidth: 7,
-        roadColor: Colors.blue,
-        zoomInto: true,
+      roadOption: RoadOption(
+        roadBorderColor: primaryContainer,
+        roadBorderWidth: 10,
+        roadColor: primaryContainer,
+        zoomInto: false,
       ),
     );
 
@@ -451,15 +440,8 @@ SystemUiOverlayStyle getSystemUiOverlayStyle(BuildContext context) {
     systemStatusBarContrastEnforced: true,
     statusBarColor:
         Theme.of(context).scaffoldBackgroundColor.withOpacity(0.002),
-    statusBarIconBrightness: Theme.of(context).brightness == Brightness.dark
-        ? Brightness.light
-        : Brightness.dark,
-    systemNavigationBarColor: Theme.of(context).brightness == Brightness.dark
-        ? Colors.white.withOpacity(0.002)
-        : Colors.black.withOpacity(0.002),
-    systemNavigationBarIconBrightness:
-        Theme.of(context).brightness == Brightness.dark
-            ? Brightness.light
-            : Brightness.dark,
+    statusBarIconBrightness: Brightness.light,
+    systemNavigationBarColor: Colors.black.withOpacity(0.002),
+    systemNavigationBarIconBrightness: Brightness.light,
   );
 }
