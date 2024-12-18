@@ -147,12 +147,8 @@ class _MainScreenState extends State<MainScreen> {
                 children: [
                   FloatingActionButton(
                     onPressed: () async {
-                      GeoPoint start = GeoPoint(
-                          latitude: 49.84125931, longitude: 24.03016822);
-                      GeoPoint end = GeoPoint(
-                          latitude: 50.38091185, longitude: 30.55075997);
-
-                      await _drawRoad(start, end);
+                      mapController.setZoom(zoomLevel: 17);
+                      mapController.currentLocation();
                     },
                     child: const Icon(Icons.my_location_rounded),
                   ),
@@ -299,6 +295,9 @@ class _MainScreenState extends State<MainScreen> {
           },
           hintText: "Search",
           leading: const Icon(Icons.search),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          )),
         );
       },
       suggestionsBuilder: searchLocationSuggestionBuilder,
@@ -377,7 +376,7 @@ class _MainScreenState extends State<MainScreen> {
         roadBorderColor: primaryContainer,
         roadBorderWidth: 10,
         roadColor: primaryContainer,
-        zoomInto: false,
+        zoomInto: true,
       ),
     );
 
