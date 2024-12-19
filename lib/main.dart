@@ -56,8 +56,9 @@ class _MainScreenState extends State<MainScreen> {
   late MapController mapController;
   GeoPoint? pickedLocation;
 
-  GeoPoint? routeStart;
-  GeoPoint? routeEnd;
+  RoadInfo? roadInfo;
+  SearchInfo? routeStart;
+  SearchInfo? routeEnd;
 
   // The query currently being searched for. If null, there is no pending
   // request.
@@ -133,7 +134,8 @@ class _MainScreenState extends State<MainScreen> {
         SafeArea(
           child: Padding(
             padding: const EdgeInsets.all(8.0),
-            child: getLocationSearchBar(),
+            child:
+                roadInfo != null ? getRouteInfoCard() : getLocationSearchBar(),
           ),
         ),
         SafeArea(
@@ -203,10 +205,7 @@ class _MainScreenState extends State<MainScreen> {
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _drawRoad(routeStart!, routeEnd!).then((_) {
-                  routeStart = null;
-                  routeEnd = null;
-                });
+                _drawRoad(routeStart!.point!, routeEnd!.point!);
               },
               child: const Text("Go"),
             )
@@ -239,8 +238,8 @@ class _MainScreenState extends State<MainScreen> {
                   suggestionsBuilder:
                       (BuildContext context, SearchController controller) {
                     return _suggestionBuilder(context, controller,
-                        onItemTap: (point) {
-                      routeStart = point;
+                        onItemTap: (searchInfo) {
+                      routeStart = searchInfo;
                     });
                   },
                 ),
@@ -298,9 +297,119 @@ class _MainScreenState extends State<MainScreen> {
           shape: WidgetStatePropertyAll(RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           )),
+          trailing: pickedLocation != null
+              ? <Widget>[
+                  Tooltip(
+                    message: "Clear",
+                    child: IconButton(
+                      onPressed: () {
+                        if (pickedLocation != null) {
+                          setState(() {
+                            mapController.removeMarker(pickedLocation!);
+                            pickedLocation = null;
+                            controller.clear();
+                          });
+                        }
+                      },
+                      icon: const Icon(Icons.clear_rounded),
+                    ),
+                  )
+                ]
+              : [],
         );
       },
       suggestionsBuilder: searchLocationSuggestionBuilder,
+    );
+  }
+
+  Widget getRouteInfoCard() {
+    return SizedBox(
+      width: double.infinity,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(child:
+                    Row(
+                      children: [
+                        Chip(
+                          avatar: const Icon(Icons.directions_rounded),
+                          label: Text("${roadInfo!.distance!.toInt()} km"),
+                        ),
+                        const SizedBox(width: 16),
+                        Chip(
+                          avatar: const Icon(Icons.directions_car_rounded),
+                          label: Text(calculateTripTime(roadInfo!.distance!, 60)),
+                        ),
+                      ],
+                    )
+                  ),
+                  Container(
+                    transform: Matrix4.translationValues(12, 0, 0),
+                    child: IconButton(
+                      onPressed: () {
+                        mapController.clearAllRoads();
+                        mapController.removeMarkers(markers);
+                        markers.clear();
+
+                        setState(() {
+                          roadInfo = null;
+                        });
+                      },
+                      icon: const Icon(Icons.clear),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.trip_origin,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      routeStart!.address.toString(),
+                      overflow: TextOverflow.fade,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.location_on_rounded,
+                    color: Theme.of(context).colorScheme.tertiary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      routeEnd!.address.toString(),
+                      overflow: TextOverflow.fade,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -308,17 +417,18 @@ class _MainScreenState extends State<MainScreen> {
       BuildContext context, SearchController controller) {
     final colorTertiary = Theme.of(context).colorScheme.tertiary;
 
-    return _suggestionBuilder(context, controller, onItemTap: (point) async {
+    return _suggestionBuilder(context, controller,
+        onItemTap: (searchInfo) async {
       if (pickedLocation != null) {
         await mapController.removeMarker(pickedLocation!);
       }
-      pickedLocation = point;
+      pickedLocation = searchInfo.point;
 
-      await mapController.moveTo(point, animate: true);
+      await mapController.moveTo(searchInfo.point!, animate: true);
       await mapController.setZoom(zoomLevel: 17);
       await mapController.addMarker(
         iconAnchor: IconAnchor(anchor: Anchor.top),
-        point,
+        searchInfo.point!,
         markerIcon: MarkerIcon(
           icon: Icon(
             Icons.location_pin,
@@ -332,7 +442,7 @@ class _MainScreenState extends State<MainScreen> {
 
   FutureOr<Iterable<Widget>> _suggestionBuilder(
       BuildContext context, SearchController controller,
-      {Function(GeoPoint)? onItemTap}) async {
+      {Function(SearchInfo)? onItemTap}) async {
     _searchingWithQuery = controller.text;
 
     final List<SearchInfo> suggestions =
@@ -352,7 +462,7 @@ class _MainScreenState extends State<MainScreen> {
         onTap: () {
           controller.closeView(item.address.toString());
           _searchBarFocusNode.unfocus();
-          onItemTap?.call(item.point!);
+          onItemTap?.call(item);
         },
       );
     });
@@ -379,6 +489,15 @@ class _MainScreenState extends State<MainScreen> {
         zoomInto: true,
       ),
     );
+
+    if (pickedLocation != null) {
+      mapController.removeMarker(pickedLocation!);
+    }
+
+    setState(() {
+      this.roadInfo = roadInfo;
+      pickedLocation = null;
+    });
 
     final key = dotenv.env['WEATHER_API_KEY']!;
     WeatherFactory wf = WeatherFactory(key);
@@ -431,6 +550,22 @@ List<T> getEquidistantValues<T>(List<T> list, int count) {
     }
     return list[position];
   });
+}
+
+String calculateTripTime(double distanceKm, double speedKmh) {
+  if (speedKmh <= 0) {
+    throw ArgumentError('Speed must be greater than 0 km/h');
+  }
+
+  // Calculate time in hours
+  double timeHours = distanceKm / speedKmh;
+
+  // Convert time to hours and minutes
+  int hours = timeHours.floor();
+  int minutes = ((timeHours - hours) * 60).round();
+
+  // Return formatted string
+  return '${hours}h ${minutes}m';
 }
 
 SystemUiOverlayStyle getSystemUiOverlayStyle(BuildContext context) {
